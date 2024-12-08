@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/accountFragment">
+
+    <fragment
+        android:id="@+id/accountFragment"
+        android:name="com.example.myapplication.presentation.account.AccountFragment"
+        android:label="账户">
+        <action
+            android:id="@+id/action_accountFragment_to_archiveAccountFragment"
+            app:destination="@id/archiveAccountFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/archiveAccountFragment"
+        android:name="com.example.myapplication.presentation.account.archive.ArchiveAccountFragment"
+        android:label="账户归档">
+        <action
+            android:id="@+id/action_archiveAccountFragment_to_accountFragment"
+            app:destination="@id/accountFragment"
+            app:popUpTo="@id/accountFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+</navigation> 

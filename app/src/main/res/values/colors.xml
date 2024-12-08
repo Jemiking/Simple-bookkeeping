@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base colors -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+
+    <!-- Primary colors -->
+    <color name="primary">#2196F3</color>
+    <color name="primary_dark">#1976D2</color>
+    <color name="primary_light">#BBDEFB</color>
+    <color name="accent">#FF4081</color>
+
+    <!-- Secondary colors -->
+    <color name="secondary">#FFC107</color>
+    <color name="secondary_dark">#FFA000</color>
+    <color name="secondary_light">#FFECB3</color>
+
+    <!-- Dark theme colors -->
+    <color name="primary_dark_theme">#90CAF9</color>
+    <color name="primary_dark_theme_dark">#64B5F6</color>
+    <color name="secondary_dark_theme">#FFD54F</color>
+    <color name="secondary_dark_theme_dark">#FFB300</color>
+
+    <!-- Text colors -->
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="text_primary_dark">#FFFFFF</color>
+    <color name="text_secondary_dark">#B3FFFFFF</color>
+    <color name="text_hint">#BDBDBD</color>
+
+    <!-- Background colors -->
+    <color name="background_light">#FAFAFA</color>
+    <color name="background_dark">#121212</color>
+    <color name="surface_light">#FFFFFF</color>
+    <color name="surface_dark">#1E1E1E</color>
+    <color name="divider">#EEEEEE</color>
+    <color name="scrim">#52000000</color>
+
+    <!-- Component colors -->
+    <color name="ripple_color">#1F000000</color>
+    <color name="ripple_color_dark">#33FFFFFF</color>
+
+    <!-- Bottom navigation colors -->
+    <color name="bottom_nav_selected">#2196F3</color>
+    <color name="bottom_nav_unselected">#757575</color>
+    <color name="bottom_nav_selected_dark">#90CAF9</color>
+    <color name="bottom_nav_unselected_dark">#B3FFFFFF</color>
+
+    <!-- Transaction type colors -->
+    <color name="income_color">#4CAF50</color>
+    <color name="expense_color">#F44336</color>
+    <color name="transfer_color">#FF9800</color>
+    <color name="error">#D32F2F</color>
+    <color name="success">#388E3C</color>
+    <color name="warning">#FFA000</color>
+
+    <!-- Chart colors -->
+    <array name="chart_colors">
+        <item>#2196F3</item>
+        <item>#4CAF50</item>
+        <item>#FFC107</item>
+        <item>#E91E63</item>
+        <item>#9C27B0</item>
+        <item>#FF5722</item>
+        <item>#795548</item>
+        <item>#607D8B</item>
+    </array>
+</resources>

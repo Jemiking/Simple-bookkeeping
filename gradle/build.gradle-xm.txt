@@ -1,0 +1,38 @@
+// 项目级别的 build.gradle.kts
+
+// 应用插件
+plugins {
+    id("com.android.application") // 应用 Android 插件
+    id("kotlin-android")          // 应用 Kotlin 插件
+    id("kotlin-android-extensions") // 如果使用 Kotlin Android 扩展，可以保留
+}
+
+// 配置项目的 buildscript
+buildscript {
+    repositories {
+        google() // 必须添加，Android 插件存储在 Google 仓库中
+        mavenCentral() // 可选，确保有两个仓库
+    }
+
+    dependencies {
+        // Android Gradle 插件
+        classpath("com.android.tools.build:gradle:7.4.0") // 根据你的项目需要，确保插件版本与 Gradle 版本兼容
+        // Kotlin 插件
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.0") // 确保 Kotlin 插件版本与项目兼容
+    }
+}
+
+// 配置 allprojects 部分，适用于所有子项目（例如：app 模块）
+allprojects {
+    repositories {
+        google()       // Google 的 Maven 仓库
+        mavenCentral() // Maven 中央仓库
+    }
+}
+
+// 配置对 Kotlin 编译任务的设置
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    kotlinOptions {
+        jvmTarget = "1.8" // 指定 JVM 目标版本，确保与 Kotlin 代码兼容
+    }
+}
