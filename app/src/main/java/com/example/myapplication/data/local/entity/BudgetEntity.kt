@@ -1,27 +1,33 @@
 package com.example.myapplication.data.local.entity
 
-import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.time.YearMonth
 
-@Entity(tableName = "budgets")
+@Entity(
+    tableName = "budgets",
+    foreignKeys = [
+        ForeignKey(
+            entity = CategoryEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["categoryId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        Index(value = ["categoryId"]),
+        Index(value = ["yearMonth", "categoryId"], unique = true)
+    ]
+)
 data class BudgetEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-    
-    @ColumnInfo(name = "amount")
-    val amount: Double,
-    
-    @ColumnInfo(name = "category_id")
-    val categoryId: Long?,  // null means overall budget
-    
-    @ColumnInfo(name = "year_month")
+    val categoryId: Long,
     val yearMonth: YearMonth,
-    
-    @ColumnInfo(name = "notify_threshold")
-    val notifyThreshold: Double? = null,  // percentage threshold for notification
-    
-    @ColumnInfo(name = "is_enabled")
-    val isEnabled: Boolean = true
+    val amount: Double,
+    val note: String = "",
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
 ) 

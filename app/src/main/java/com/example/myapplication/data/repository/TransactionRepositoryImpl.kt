@@ -1,64 +1,67 @@
 package com.example.myapplication.data.repository
 
 import com.example.myapplication.data.local.dao.TransactionDao
-import com.example.myapplication.data.local.entity.TransactionEntity
+import com.example.myapplication.data.mapper.toEntity
+import com.example.myapplication.data.mapper.toTransaction
 import com.example.myapplication.domain.model.Transaction
 import com.example.myapplication.domain.repository.TransactionRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import java.util.Date
-import java.util.UUID
 import javax.inject.Inject
 
 class TransactionRepositoryImpl @Inject constructor(
-    private val transactionDao: TransactionDao
+    private val dao: TransactionDao
 ) : TransactionRepository {
 
-    override suspend fun insertTransaction(transaction: Transaction) {
-        transactionDao.insertTransaction(TransactionEntity.fromDomainModel(transaction))
+    override fun getTransactions(): Flow<List<Transaction>> {
+        return dao.getTransactions().map { entities ->
+            entities.map { it.toTransaction() }
+        }
+    }
+
+    override fun getTransactionById(id: Long): Flow<Transaction?> {
+        return dao.getTransactionById(id).map { entity ->
+            entity?.toTransaction()
+        }
+    }
+
+    override fun getTransactionsByIds(ids: List<Long>): Flow<List<Transaction>> {
+        return dao.getTransactionsByIds(ids).map { entities ->
+            entities.map { it.toTransaction() }
+        }
+    }
+
+    override suspend fun insertTransaction(transaction: Transaction): Long {
+        return dao.insertTransaction(transaction.toEntity())
     }
 
     override suspend fun updateTransaction(transaction: Transaction) {
-        transactionDao.updateTransaction(TransactionEntity.fromDomainModel(transaction))
+        dao.updateTransaction(transaction.toEntity())
     }
 
-    override suspend fun deleteTransaction(transactionId: UUID) {
-        transactionDao.deleteTransaction(transactionId.toString())
+    override suspend fun deleteTransaction(id: Long) {
+        dao.deleteTransaction(id)
     }
 
-    override suspend fun getTransactionById(transactionId: UUID): Transaction? {
-        return transactionDao.getTransactionById(transactionId.toString())?.toDomainModel()
-    }
-
-    override fun getAllTransactions(): Flow<List<Transaction>> {
-        return transactionDao.getAllTransactions().map { entities ->
-            entities.map { it.toDomainModel() }
+    override fun searchTransactions(query: String): Flow<List<Transaction>> {
+        return dao.searchTransactions(query).map { entities ->
+            entities.map { it.toTransaction() }
         }
     }
 
-    override fun getTransactionsByDateRange(startDate: Date, endDate: Date): Flow<List<Transaction>> {
-        return transactionDao.getTransactionsByDateRange(startDate, endDate).map { entities ->
-            entities.map { it.toDomainModel() }
+    override fun getTransactionsByCategory(categoryId: Long): Flow<List<Transaction>> {
+        return dao.getTransactionsByCategory(categoryId).map { entities ->
+            entities.map { it.toTransaction() }
         }
     }
 
-    override fun getTransactionsByAccount(accountId: UUID): Flow<List<Transaction>> {
-        return transactionDao.getTransactionsByAccount(accountId.toString()).map { entities ->
-            entities.map { it.toDomainModel() }
+    override fun getTransactionsByDateRange(startDate: Long, endDate: Long): Flow<List<Transaction>> {
+        return dao.getTransactionsByDateRange(startDate, endDate).map { entities ->
+            entities.map { it.toTransaction() }
         }
     }
 
-    override fun getTransactionsByCategory(categoryId: UUID): Flow<List<Transaction>> {
-        return transactionDao.getTransactionsByCategory(categoryId.toString()).map { entities ->
-            entities.map { it.toDomainModel() }
-        }
-    }
-
-    override suspend fun getTransactionCount(): Int {
-        return transactionDao.getTransactionCount()
-    }
-
-    override suspend fun deleteAllTransactions() {
-        transactionDao.deleteAllTransactions()
+    override fun getTransactionStats(): Flow<Map<String, Double>> {
+        return dao.getTransactionStats()
     }
 } 

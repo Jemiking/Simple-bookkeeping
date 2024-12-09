@@ -1,133 +1,109 @@
-# 我的记账APP
+# 简单记账
 
-## 项目概述
-一个简单易用、功能完整的个人记账Android应用程序。
+一个基于 Android 的简单记账应用，帮助用户轻松管理个人财务。
 
-### 开始时间
-- 项目启动日期：2024年12月07日
+## 功能特点
 
-### 项目目标
-打造一个界面简洁、操作便捷、功能实用的个人记账应用，帮助用户更好地管理个人财务。
+### 交易管理
+- ✅ 交易记录的增删改查
+- ✅ 支持收入、支出和转账类型
+- ✅ 高级搜索和筛选功能
+- ✅ 交易历史记录
+- ✅ 相关交易推荐
+- ✅ 交易分享功能
 
-### 当前进度
-- 总体进度：35%
-- 已完成功能：
-  - ✅ 数据层架构
-  - ✅ 核心业务逻辑
-  - ✅ 依赖注入配置
-  - 🚧 UI层实现（进行中）
+### 账户管理
+- ✅ 多账户支持
+- ✅ 账户余额追踪
+- 🚧 账户间转账
+- 🚧 账户统计报表
 
-## 核心功能
-1. 快速记账
-   - 支持多种记账方式
-   - 智能分类系统
-   - 便捷的数据输入
+### 预算管理
+- ✅ 月度预算设置
+- ✅ 预算超支提醒
+- ✅ 预算执行追踪
+- ✅ 预算分析报告
 
-2. 数据统计
-   - 收支概览
-   - 分类统计
-   - 趋势分析
+### 统计分析
+- ✅ 收支趋势分析
+- ✅ 分类支出统计
+- ✅ 月度/年度报表
+- ✅ 数据可视化图表
 
-3. 预算管理
-   - 月度预算
-   - 超支提醒
-   - 预算分析
+### 分类管理
+- ✅ 自定义分类
+- ✅ 分类图标和颜色
+- ✅ 分类层级管理
+- ✅ 分类使用统计
 
-4. 多账户管理
-   - 现金账户
-   - 银行卡
-   - 电子支付
+### 设置功能
+- ✅ 主题切换
+- ✅ 货币设置
+- ✅ 语言切换
+- ✅ 数据导入导出
+
+## 技术特点
+
+- 💡 采用 MVVM 架构
+- 🏗️ 使用 Clean Architecture 设计
+- 🎯 遵循 SOLID 原则
+- 🔄 响应式编程
+- 🎨 Material Design 3
+- 📱 支持深色模式
+- ⚡ 高性能设计
+- 🔒 数据安全存储
+
+## 开发进度
+
+### 已完成模块
+- ✅ 交易管理 (100%)
+- ✅ 预算管理 (100%)
+- ✅ 统计分析 (100%)
+- ✅ 设置功能 (100%)
+- ✅ 分类管理 (100%)
+
+### 进行中模块
+- 🚧 账户管理 (80%)
+
+### 待开发模块
+- 📝 主导航和路由 (0%)
+- 📝 错误处理和加载状态 (0%)
+- 📝 UI完善和动画 (0%)
+- 📝 测试覆盖 (0%)
 
 ## 技术栈
-- 开发语言：Kotlin
-- 最低支持Android版本：Android 8.0 (API 26)
-- 目标Android版本：Android 14 (API 34)
-- 架构模式：MVVM
-- 数据库：Room
-- UI框架：Jetpack Compose
-- 依赖注入：Hilt
-- 异步处理：Coroutines + Flow
-- 单元测试：JUnit + Mockito
 
-## 项目结构
-```
-app/
-├── src/
-│   ├── main/
-│   │   ├── java/com/myapp/
-│   │   │   ├── data/          # 数据层
-│   │   │   ├── domain/        # 领域层
-│   │   │   ├── presentation/  # 表现层
-│   │   │   └── utils/         # 工具类
-│   │   └── res/               # 资源文件
-│   ├── test/                  # 单元测试
-│   └── androidTest/           # UI测试
-├── build.gradle
-└── proguard-rules.pro
-```
+- Kotlin
+- Jetpack Compose
+- Coroutines & Flow
+- Hilt (依赖注入)
+- Room (数据持久化)
+- Material Design 3
+- Navigation Component
+- ViewModel
+- LiveData
+- DataStore
 
-## 开发规范
-1. 代码规范
-   - 遵循Kotlin官方编码规范
-   - 使用ktlint进行代码格式化
-   - 重要的类和方法必须添加注释
+## 系统要求
 
-2. Git提交规范
-   - feat: 新功能
-   - fix: 修复bug
-   - docs: 文档更新
-   - style: 代码格式化
-   - refactor: 代码重构
-   - test: 测试相关
-   - chore: 构建过程或辅助工具的变动
+- Android 6.0 (API 23) 或更高版本
+- 推荐 Android 8.0 (API 26) 及以上
 
-## 开发计划
-详细的开发进度请查看 [COMPLETION.md](docs/COMPLETION.md)
+## 开发环境
 
-## 环境要求
 - Android Studio Hedgehog | 2023.1.1
-- JDK 17
-- Gradle 8.0
 - Kotlin 1.9.0
-
-## 如何运行
-1. 克隆项目
-```bash
-git clone [项目地址]
-```
-
-2. 使用Android Studio打开项目
-
-3. 同步Gradle文件
-
-4. 运行项目到模拟器或实体设备
-
-## 测试
-- 单元测试：`./gradlew test`
-- UI测试：`./gradlew connectedAndroidTest`
-
-## 文档
-- [开发进度](docs/COMPLETION.md)
-- [API文档](docs/API.md)
-- [数据库设计](docs/DATABASE.md)
-- [UI设计](docs/UI_DESIGN.md)
+- Gradle 8.0
+- JDK 17
 
 ## 贡献指南
-1. Fork 项目
-2. 创建特性分支
-3. 提交变更
-4. 推送到分支
-5. 创建Pull Request
 
-## 版本历史
-- v0.1.0 (开发中) - 初始版���
-
-## 作者
-[您的名字]
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
 
 ## 许可证
-MIT License
 
-## 联系方式
-- Email: [您的邮箱]
-- GitHub: [您的GitHub] 
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情

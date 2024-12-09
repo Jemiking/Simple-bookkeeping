@@ -2,43 +2,52 @@ package com.example.myapplication.data.local.dao
 
 import androidx.room.*
 import com.example.myapplication.data.local.entity.AccountEntity
+import com.example.myapplication.data.local.entity.AccountType
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AccountDao {
+    @Query("SELECT * FROM accounts")
+    fun getAccounts(): Flow<List<AccountEntity>>
+
+    @Query("SELECT * FROM accounts WHERE id = :id")
+    fun getAccountById(id: Long): Flow<AccountEntity>
+
+    @Query("""
+        SELECT * FROM accounts 
+        WHERE (:type IS NULL OR type = :type)
+        AND (name LIKE '%' || :query || '%' OR note LIKE '%' || :query || '%')
+    """)
+    fun searchAccounts(query: String, type: AccountType?): Flow<List<AccountEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAccount(account: AccountEntity)
+    suspend fun insertAccount(account: AccountEntity): Long
 
     @Update
     suspend fun updateAccount(account: AccountEntity)
 
-    @Query("DELETE FROM accounts WHERE id = :accountId")
-    suspend fun deleteAccount(accountId: String)
-
-    @Query("SELECT * FROM accounts WHERE id = :accountId")
-    suspend fun getAccountById(accountId: String): AccountEntity?
-
-    @Query("SELECT * FROM accounts ORDER BY name ASC")
-    fun getAllAccounts(): Flow<List<AccountEntity>>
-
-    @Query("SELECT * FROM accounts WHERE isArchived = 0 ORDER BY name ASC")
-    fun getActiveAccounts(): Flow<List<AccountEntity>>
-
-    @Query("SELECT * FROM accounts WHERE isArchived = 1 ORDER BY name ASC")
-    fun getArchivedAccounts(): Flow<List<AccountEntity>>
-
-    @Query("SELECT * FROM accounts WHERE isDefault = 1 LIMIT 1")
-    suspend fun getDefaultAccount(): AccountEntity?
+    @Query("DELETE FROM accounts WHERE id = :id")
+    suspend fun deleteAccount(id: Long)
 
     @Query("SELECT COUNT(*) FROM accounts")
-    suspend fun getAccountCount(): Int
+    fun getAccountCount(): Flow<Int>
 
-    @Query("UPDATE accounts SET isArchived = 1 WHERE id = :accountId")
-    suspend fun archiveAccount(accountId: String)
+    @Query("SELECT balance FROM accounts WHERE id = :id")
+    suspend fun getAccountBalance(id: Long): Double
 
-    @Query("UPDATE accounts SET isArchived = 0 WHERE id = :accountId")
-    suspend fun unarchiveAccount(accountId: String)
+    @Query("UPDATE accounts SET balance = :newBalance WHERE id = :id")
+    suspend fun updateAccountBalance(id: Long, newBalance: Double)
 
-    @Query("SELECT * FROM accounts WHERE type = :type AND isArchived = 0 ORDER BY name ASC")
-    fun getAccountsByType(type: AccountType): Flow<List<AccountEntity>>
+    @Transaction
+    suspend fun transfer(fromAccountId: Long, toAccountId: Long, amount: Double) {
+        val fromBalance = getAccountBalance(fromAccountId)
+        val toBalance = getAccountBalance(toAccountId)
+        
+        if (fromBalance < amount) {
+            throw IllegalStateException("余额不足")
+        }
+        
+        updateAccountBalance(fromAccountId, fromBalance - amount)
+        updateAccountBalance(toAccountId, toBalance + amount)
+    }
 } 
