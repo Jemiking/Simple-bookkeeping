@@ -1,46 +1,76 @@
 package com.example.myapplication.data.repository
 
 import com.example.myapplication.data.local.dao.BudgetDao
-import com.example.myapplication.data.local.dao.CategoryDao
-import com.example.myapplication.data.mapper.toDomain
-import com.example.myapplication.data.mapper.toEntity
+import com.example.myapplication.data.local.entity.BudgetEntity
 import com.example.myapplication.domain.model.Budget
+import com.example.myapplication.domain.model.BudgetWithCategory
+import com.example.myapplication.domain.model.BudgetProgress
 import com.example.myapplication.domain.repository.BudgetRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.YearMonth
 import javax.inject.Inject
 
 class BudgetRepositoryImpl @Inject constructor(
-    private val budgetDao: BudgetDao,
-    private val categoryDao: CategoryDao
+    private val budgetDao: BudgetDao
 ) : BudgetRepository {
 
     override fun getBudgetsByMonth(yearMonth: YearMonth): Flow<List<Budget>> {
-        return budgetDao.getBudgetsByMonth(yearMonth).map { budgets ->
-            budgets.map { budget ->
-                getBudgetWithDetails(budget, yearMonth)
+        return budgetDao.getBudgetsByMonth(yearMonth).map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
+
+    override fun getBudgetsByCategory(categoryId: Long): Flow<List<Budget>> {
+        return budgetDao.getBudgetsByCategory(categoryId).map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
+
+    override fun getBudget(yearMonth: YearMonth, categoryId: Long): Flow<Budget?> {
+        return budgetDao.getBudget(yearMonth, categoryId).map { entity ->
+            entity?.toDomain()
+        }
+    }
+
+    override fun getBudgetsWithCategory(yearMonth: YearMonth): Flow<List<BudgetWithCategory>> {
+        return budgetDao.getBudgetsWithCategory(yearMonth).map { entities ->
+            entities.map {
+                BudgetWithCategory(
+                    id = it.id,
+                    categoryId = it.categoryId,
+                    yearMonth = it.yearMonth,
+                    amount = it.amount,
+                    note = it.note,
+                    createdAt = it.createdAt,
+                    updatedAt = it.updatedAt,
+                    categoryName = it.categoryName,
+                    categoryType = it.categoryType
+                )
             }
         }
     }
 
-    override fun getBudgetByCategoryAndMonth(
-        categoryId: Long,
-        yearMonth: YearMonth
-    ): Flow<Budget?> {
-        return budgetDao.getBudgetByCategoryAndMonth(categoryId, yearMonth).map { budget ->
-            budget?.let { getBudgetWithDetails(it, yearMonth) }
+    override fun getBudgetProgress(yearMonth: YearMonth): Flow<List<BudgetProgress>> {
+        return budgetDao.getBudgetProgress(yearMonth).map { entities ->
+            entities.map {
+                BudgetProgress(
+                    id = it.id,
+                    categoryId = it.categoryId,
+                    yearMonth = it.yearMonth,
+                    amount = it.amount,
+                    note = it.note,
+                    createdAt = it.createdAt,
+                    updatedAt = it.updatedAt,
+                    spentAmount = it.spentAmount,
+                    remainingAmount = it.remainingAmount,
+                    progress = it.progress
+                )
+            }
         }
     }
 
-    override fun getOverallBudgetByMonth(yearMonth: YearMonth): Flow<Budget?> {
-        return budgetDao.getOverallBudgetByMonth(yearMonth).map { budget ->
-            budget?.let { getBudgetWithDetails(it, yearMonth) }
-        }
-    }
-
-    override suspend fun addBudget(budget: Budget): Long {
+    override suspend fun insertBudget(budget: Budget): Long {
         return budgetDao.insertBudget(budget.toEntity())
     }
 
@@ -52,56 +82,35 @@ class BudgetRepositoryImpl @Inject constructor(
         budgetDao.deleteBudget(budget.toEntity())
     }
 
-    override suspend fun deleteBudgetById(id: Long) {
-        budgetDao.deleteBudgetById(id)
+    override suspend fun deleteBudgetsByMonth(yearMonth: YearMonth) {
+        budgetDao.deleteBudgetsByMonth(yearMonth)
     }
 
-    override fun getBudgetsExceedingThreshold(yearMonth: YearMonth): Flow<List<Budget>> {
-        return budgetDao.getBudgetsExceedingThreshold(yearMonth).map { budgets ->
-            budgets.map { budget ->
-                getBudgetWithDetails(budget, yearMonth)
-            }
-        }
+    override suspend fun deleteBudgetsByCategory(categoryId: Long) {
+        budgetDao.deleteBudgetsByCategory(categoryId)
     }
 
-    override fun getCurrentSpending(categoryId: Long?, yearMonth: YearMonth): Flow<Double> {
-        return budgetDao.getCurrentSpending(categoryId, yearMonth)
+    private fun BudgetEntity.toDomain(): Budget {
+        return Budget(
+            id = id,
+            categoryId = categoryId,
+            yearMonth = yearMonth,
+            amount = amount,
+            note = note,
+            createdAt = createdAt,
+            updatedAt = updatedAt
+        )
     }
 
-    override fun getBudgetWithSpending(budgetId: Long, yearMonth: YearMonth): Flow<Budget> {
-        val budget = budgetDao.getBudgetsByMonth(yearMonth).map { budgets ->
-            budgets.find { it.id == budgetId }
-                ?: throw IllegalStateException("Budget not found")
-        }
-
-        val spending = budget.map { it.categoryId }.map { categoryId ->
-            budgetDao.getCurrentSpending(categoryId, yearMonth)
-        }
-
-        return combine(budget, spending) { budgetEntity, spendingFlow ->
-            getBudgetWithDetails(
-                budgetEntity,
-                yearMonth,
-                spendingFlow.map { it }.hashCode().toDouble()
-            )
-        }
-    }
-
-    private suspend fun getBudgetWithDetails(
-        budget: com.example.myapplication.data.local.entity.BudgetEntity,
-        yearMonth: YearMonth,
-        currentSpending: Double? = null
-    ): Budget {
-        val category = budget.categoryId?.let { categoryDao.getCategoryById(it) }
-        val spending = currentSpending
-            ?: budgetDao.getCurrentSpending(budget.categoryId, yearMonth)
-                .map { it }.hashCode().toDouble()
-
-        return budget.toDomain(
-            categoryName = category?.name,
-            categoryIcon = category?.icon,
-            categoryColor = category?.color,
-            currentSpending = spending
+    private fun Budget.toEntity(): BudgetEntity {
+        return BudgetEntity(
+            id = id,
+            categoryId = categoryId,
+            yearMonth = yearMonth,
+            amount = amount,
+            note = note,
+            createdAt = createdAt,
+            updatedAt = updatedAt
         )
     }
 } 

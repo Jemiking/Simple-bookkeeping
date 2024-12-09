@@ -2,18 +2,19 @@ package com.example.myapplication.domain.repository
 
 import com.example.myapplication.domain.model.Transaction
 import kotlinx.coroutines.flow.Flow
-import java.util.Date
-import java.util.UUID
+import java.time.LocalDateTime
 
 interface TransactionRepository {
-    suspend fun insertTransaction(transaction: Transaction)
+    fun getTransactions(): Flow<List<Transaction>>
+    fun getTransactionById(id: Long): Flow<Transaction?>
+    suspend fun insertTransaction(transaction: Transaction): Long
     suspend fun updateTransaction(transaction: Transaction)
-    suspend fun deleteTransaction(transactionId: UUID)
-    suspend fun getTransactionById(transactionId: UUID): Transaction?
-    fun getAllTransactions(): Flow<List<Transaction>>
-    fun getTransactionsByDateRange(startDate: Date, endDate: Date): Flow<List<Transaction>>
-    fun getTransactionsByAccount(accountId: UUID): Flow<List<Transaction>>
-    fun getTransactionsByCategory(categoryId: UUID): Flow<List<Transaction>>
-    suspend fun getTransactionCount(): Int
-    suspend fun deleteAllTransactions()
+    suspend fun deleteTransaction(id: Long)
+    fun searchTransactions(query: String): Flow<List<Transaction>>
+    fun getTransactionsByDateRange(
+        startDate: LocalDateTime,
+        endDate: LocalDateTime
+    ): Flow<List<Transaction>>
+    fun getTransactionsByCategory(categoryId: Long): Flow<List<Transaction>>
+    fun getTransactionsByAccount(accountId: Long): Flow<List<Transaction>>
 } 

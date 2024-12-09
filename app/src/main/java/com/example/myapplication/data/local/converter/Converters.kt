@@ -1,53 +1,43 @@
 package com.example.myapplication.data.local.converter
 
 import androidx.room.TypeConverter
-import com.example.myapplication.data.local.entity.AccountType
-import com.example.myapplication.data.local.entity.TransactionType
+import com.example.myapplication.domain.model.TransactionType
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import java.time.LocalDateTime
-import java.time.YearMonth
-import java.time.format.DateTimeFormatter
+import java.time.ZoneOffset
 
 class Converters {
-    private val dateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
-    private val yearMonthFormatter = DateTimeFormatter.ofPattern("yyyy-MM")
+    private val gson = Gson()
 
     @TypeConverter
-    fun fromTimestamp(value: String?): LocalDateTime? {
-        return value?.let { LocalDateTime.parse(it, dateTimeFormatter) }
+    fun fromTimestamp(value: Long?): LocalDateTime? {
+        return value?.let { LocalDateTime.ofEpochSecond(it, 0, ZoneOffset.UTC) }
     }
 
     @TypeConverter
-    fun dateToTimestamp(date: LocalDateTime?): String? {
-        return date?.format(dateTimeFormatter)
+    fun dateToTimestamp(date: LocalDateTime?): Long? {
+        return date?.toEpochSecond(ZoneOffset.UTC)
     }
 
     @TypeConverter
-    fun fromYearMonth(value: String?): YearMonth? {
-        return value?.let { YearMonth.parse(it, yearMonthFormatter) }
+    fun fromTransactionType(value: TransactionType): String {
+        return value.name
     }
 
     @TypeConverter
-    fun yearMonthToString(yearMonth: YearMonth?): String? {
-        return yearMonth?.format(yearMonthFormatter)
+    fun toTransactionType(value: String): TransactionType {
+        return TransactionType.valueOf(value)
     }
 
     @TypeConverter
-    fun fromTransactionType(value: String?): TransactionType? {
-        return value?.let { TransactionType.valueOf(it) }
+    fun fromStringList(value: List<String>): String {
+        return gson.toJson(value)
     }
 
     @TypeConverter
-    fun transactionTypeToString(type: TransactionType?): String? {
-        return type?.name
-    }
-
-    @TypeConverter
-    fun fromAccountType(value: String?): AccountType? {
-        return value?.let { AccountType.valueOf(it) }
-    }
-
-    @TypeConverter
-    fun accountTypeToString(type: AccountType?): String? {
-        return type?.name
+    fun toStringList(value: String): List<String> {
+        val listType = object : TypeToken<List<String>>() {}.type
+        return gson.fromJson(value, listType)
     }
 } 

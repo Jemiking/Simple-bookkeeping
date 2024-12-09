@@ -2,40 +2,49 @@ package com.example.myapplication.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.example.myapplication.domain.model.Category
-import com.example.myapplication.domain.model.TransactionType
-import java.util.UUID
+import androidx.room.ColumnInfo
+import java.time.LocalDateTime
 
 @Entity(tableName = "categories")
 data class CategoryEntity(
-    @PrimaryKey
-    val id: String,
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    
+    @ColumnInfo(name = "name")
     val name: String,
+    
+    @ColumnInfo(name = "type")
+    val type: CategoryType,
+    
+    @ColumnInfo(name = "icon")
     val icon: String,
-    val color: Int,
-    val type: TransactionType,
-    val parentId: String?,
-    val isDefault: Boolean
-) {
-    fun toDomainModel(): Category = Category(
-        id = UUID.fromString(id),
-        name = name,
-        icon = icon,
-        color = color,
-        type = type,
-        parentId = parentId?.let { UUID.fromString(it) },
-        isDefault = isDefault
-    )
+    
+    @ColumnInfo(name = "color")
+    val color: String,
+    
+    @ColumnInfo(name = "parent_id")
+    val parentId: Long? = null,
+    
+    @ColumnInfo(name = "order_index")
+    val orderIndex: Int = 0,
+    
+    @ColumnInfo(name = "budget_amount")
+    val budgetAmount: Double? = null,
+    
+    @ColumnInfo(name = "note")
+    val note: String = "",
+    
+    @ColumnInfo(name = "created_at")
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+    
+    @ColumnInfo(name = "updated_at")
+    val updatedAt: LocalDateTime = LocalDateTime.now(),
+    
+    @ColumnInfo(name = "is_deleted")
+    val isDeleted: Boolean = false
+)
 
-    companion object {
-        fun fromDomainModel(category: Category): CategoryEntity = CategoryEntity(
-            id = category.id.toString(),
-            name = category.name,
-            icon = category.icon,
-            color = category.color,
-            type = category.type,
-            parentId = category.parentId?.toString(),
-            isDefault = category.isDefault
-        )
-    }
+enum class CategoryType {
+    EXPENSE,    // 支出
+    INCOME      // 收入
 } 

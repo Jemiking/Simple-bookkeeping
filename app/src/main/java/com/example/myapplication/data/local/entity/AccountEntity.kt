@@ -2,50 +2,47 @@ package com.example.myapplication.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.example.myapplication.domain.model.Account
-import com.example.myapplication.domain.model.AccountType
-import java.math.BigDecimal
-import java.util.UUID
+import androidx.room.ColumnInfo
+import java.time.LocalDateTime
 
 @Entity(tableName = "accounts")
 data class AccountEntity(
-    @PrimaryKey
-    val id: String,
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    
+    @ColumnInfo(name = "name")
     val name: String,
+    
+    @ColumnInfo(name = "type")
     val type: AccountType,
+    
+    @ColumnInfo(name = "balance")
     val balance: Double,
-    val currency: String,
+    
+    @ColumnInfo(name = "icon")
     val icon: String,
-    val color: Int,
-    val isDefault: Boolean,
-    val isArchived: Boolean,
-    val excludeFromStats: Boolean
-) {
-    fun toDomainModel(): Account = Account(
-        id = UUID.fromString(id),
-        name = name,
-        type = type,
-        balance = BigDecimal(balance.toString()),
-        currency = currency,
-        icon = icon,
-        color = color,
-        isDefault = isDefault,
-        isArchived = isArchived,
-        excludeFromStats = excludeFromStats
-    )
+    
+    @ColumnInfo(name = "color")
+    val color: String,
+    
+    @ColumnInfo(name = "note")
+    val note: String,
+    
+    @ColumnInfo(name = "created_at")
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+    
+    @ColumnInfo(name = "updated_at")
+    val updatedAt: LocalDateTime = LocalDateTime.now(),
+    
+    @ColumnInfo(name = "is_deleted")
+    val isDeleted: Boolean = false
+)
 
-    companion object {
-        fun fromDomainModel(account: Account): AccountEntity = AccountEntity(
-            id = account.id.toString(),
-            name = account.name,
-            type = account.type,
-            balance = account.balance.toDouble(),
-            currency = account.currency,
-            icon = account.icon,
-            color = account.color,
-            isDefault = account.isDefault,
-            isArchived = account.isArchived,
-            excludeFromStats = account.excludeFromStats
-        )
-    }
+enum class AccountType {
+    CASH,           // 现金
+    BANK_CARD,      // 银行卡
+    CREDIT_CARD,    // 信用卡
+    ALIPAY,         // 支付宝
+    WECHAT,         // 微信
+    OTHER           // 其他
 } 

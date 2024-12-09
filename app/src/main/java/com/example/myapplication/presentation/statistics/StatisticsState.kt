@@ -4,6 +4,7 @@ import com.example.myapplication.data.local.entity.TransactionType
 import com.example.myapplication.domain.model.Transaction
 import com.example.myapplication.domain.usecase.transaction.GetTransactionStatsUseCase.CategoryStat
 import com.example.myapplication.presentation.statistics.components.MonthlyAmount
+import com.example.myapplication.presentation.statistics.components.MonthlyComparison
 import java.time.YearMonth
 
 data class StatisticsState(
@@ -18,6 +19,7 @@ data class StatisticsState(
     val categoryStats: List<CategoryStat> = emptyList(),
     val transactions: List<Transaction> = emptyList(),
     val monthlyData: List<MonthlyAmount> = emptyList(),
+    val monthlyComparisonData: List<MonthlyComparison> = emptyList(),
     
     // 图表相关
     val showPieChart: Boolean = true,

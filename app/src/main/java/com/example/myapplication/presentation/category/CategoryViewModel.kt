@@ -2,283 +2,104 @@ package com.example.myapplication.presentation.category
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.myapplication.data.local.entity.CategoryType
 import com.example.myapplication.domain.model.Category
-import com.example.myapplication.domain.usecase.category.AddCategoryUseCase
+import com.example.myapplication.domain.repository.CategoryRepository
 import com.example.myapplication.domain.usecase.category.DeleteCategoryUseCase
 import com.example.myapplication.domain.usecase.category.GetCategoriesUseCase
-import com.example.myapplication.domain.usecase.category.ReorderCategoriesUseCase
-import com.example.myapplication.domain.util.Result
+import com.example.myapplication.domain.usecase.category.GetCategoryStatsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class CategoryViewModel @Inject constructor(
-    private val getCategories: GetCategoriesUseCase,
-    private val addCategory: AddCategoryUseCase,
-    private val deleteCategory: DeleteCategoryUseCase,
-    private val reorderCategories: ReorderCategoriesUseCase
+    private val getCategoriesUseCase: GetCategoriesUseCase,
+    private val getCategoryStatsUseCase: GetCategoryStatsUseCase,
+    private val deleteCategoryUseCase: DeleteCategoryUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CategoryState())
-    val state = combine(
-        _state,
-        getCategories()
-    ) { state, categories ->
-        state.copy(
-            expenseCategories = categories.filter { 
-                it.type == com.example.myapplication.data.local.entity.TransactionType.EXPENSE 
-            }.sortedBy { it.orderIndex },
-            incomeCategories = categories.filter { 
-                it.type == com.example.myapplication.data.local.entity.TransactionType.INCOME 
-            }.sortedBy { it.orderIndex }
-        )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = CategoryState()
-    )
+    val state: StateFlow<CategoryState> = _state.asStateFlow()
+
+    private val _effect = MutableSharedFlow<CategoryEffect>()
+    val effect: SharedFlow<CategoryEffect> = _effect.asSharedFlow()
+
+    init {
+        loadCategories()
+        loadStats()
+    }
 
     fun onEvent(event: CategoryEvent) {
         when (event) {
-            is CategoryEvent.TypeChanged -> {
-                _state.value = _state.value.copy(
-                    selectedType = event.type,
-                    selectedCategory = null
-                )
-            }
-            is CategoryEvent.CategorySelected -> {
-                _state.value = _state.value.copy(
-                    selectedCategory = event.category,
-                    isEditing = true,
-                    editingCategory = event.category.toEditingCategory()
-                )
-            }
-            is CategoryEvent.NameChanged -> {
-                _state.value = _state.value.copy(
-                    editingCategory = _state.value.editingCategory.copy(
-                        name = event.name,
-                        nameError = null
-                    )
-                )
-            }
-            is CategoryEvent.IconChanged -> {
-                _state.value = _state.value.copy(
-                    editingCategory = _state.value.editingCategory.copy(
-                        icon = event.icon,
-                        iconError = null
-                    )
-                )
-            }
-            is CategoryEvent.ColorChanged -> {
-                _state.value = _state.value.copy(
-                    editingCategory = _state.value.editingCategory.copy(
-                        color = event.color
-                    )
-                )
-            }
-            is CategoryEvent.ParentCategoryChanged -> {
-                _state.value = _state.value.copy(
-                    editingCategory = _state.value.editingCategory.copy(
-                        parentCategoryId = event.parentId
-                    )
-                )
-            }
-            CategoryEvent.ShowAddDialog -> {
-                _state.value = _state.value.copy(
-                    isAddDialogVisible = true,
-                    isEditing = false,
-                    editingCategory = EditingCategory(
-                        type = _state.value.selectedType
-                    )
-                )
-            }
-            CategoryEvent.HideAddDialog -> {
-                _state.value = _state.value.copy(
-                    isAddDialogVisible = false,
-                    isEditing = false,
-                    editingCategory = EditingCategory()
-                )
-            }
-            CategoryEvent.ShowDeleteDialog -> {
-                _state.value = _state.value.copy(
-                    isDeleteDialogVisible = true
-                )
-            }
-            CategoryEvent.HideDeleteDialog -> {
-                _state.value = _state.value.copy(
-                    isDeleteDialogVisible = false
-                )
-            }
-            CategoryEvent.SaveCategory -> {
-                saveCategory()
-            }
-            CategoryEvent.DeleteCategory -> {
-                deleteSelectedCategory()
-            }
-            is CategoryEvent.StartDragging -> {
-                _state.value = _state.value.copy(
-                    isDragging = true,
-                    selectedCategory = event.category
-                )
-            }
-            CategoryEvent.StopDragging -> {
-                _state.value = _state.value.copy(
-                    isDragging = false,
-                    selectedCategory = null
-                )
-            }
-            is CategoryEvent.MovedCategory -> {
-                reorderCategory(event.fromIndex, event.toIndex)
-            }
-            CategoryEvent.DismissError -> {
-                _state.value = _state.value.copy(error = null)
-            }
+            is CategoryEvent.LoadCategories -> loadCategories(event.type)
+            is CategoryEvent.DeleteCategory -> deleteCategory(event.categoryId)
+            is CategoryEvent.RefreshStats -> loadStats()
         }
     }
 
-    private fun saveCategory() {
-        val currentState = _state.value
-        val editingCategory = currentState.editingCategory
-
-        // 验证输入
-        if (!validateInput()) {
-            return
-        }
-
+    private fun loadCategories(type: CategoryType? = null) {
         viewModelScope.launch {
-            _state.value = currentState.copy(isLoading = true)
-
-            val category = Category(
-                id = if (currentState.isEditing) {
-                    currentState.selectedCategory?.id ?: 0
-                } else 0,
-                name = editingCategory.name,
-                icon = editingCategory.icon,
-                color = editingCategory.color,
-                type = editingCategory.type,
-                orderIndex = editingCategory.orderIndex,
-                isDefault = editingCategory.isDefault,
-                parentCategoryId = editingCategory.parentCategoryId
-            )
-
-            when (val result = addCategory(category)) {
-                is Result.Success -> {
-                    _state.value = currentState.copy(
-                        isLoading = false,
-                        isAddDialogVisible = false,
-                        isEditing = false,
-                        editingCategory = EditingCategory()
-                    )
+            _state.update { it.copy(isLoading = true) }
+            try {
+                getCategoriesUseCase(type).collect { categories ->
+                    _state.update { it.copy(
+                        categories = categories,
+                        isLoading = false
+                    ) }
                 }
-                is Result.Error -> {
-                    _state.value = currentState.copy(
-                        isLoading = false,
-                        error = result.exception.message
-                    )
-                }
-                Result.Loading -> Unit
+            } catch (e: Exception) {
+                _state.update { it.copy(isLoading = false) }
+                _effect.emit(CategoryEffect.ShowError(e.message ?: "加载分类失败"))
             }
         }
     }
 
-    private fun deleteSelectedCategory() {
-        val currentState = _state.value
-        val selectedCategory = currentState.selectedCategory ?: return
-
+    private fun loadStats() {
         viewModelScope.launch {
-            _state.value = currentState.copy(isLoading = true)
-
-            when (val result = deleteCategory(selectedCategory)) {
-                is Result.Success -> {
-                    _state.value = currentState.copy(
-                        isLoading = false,
-                        isDeleteDialogVisible = false,
-                        selectedCategory = null
-                    )
+            try {
+                getCategoryStatsUseCase().collect { stats ->
+                    _state.update { it.copy(stats = stats) }
                 }
-                is Result.Error -> {
-                    _state.value = currentState.copy(
-                        isLoading = false,
-                        error = result.exception.message
-                    )
-                }
-                Result.Loading -> Unit
+            } catch (e: Exception) {
+                _effect.emit(CategoryEffect.ShowError(e.message ?: "加载统计信息失败"))
             }
         }
     }
 
-    private fun reorderCategory(fromIndex: Int, toIndex: Int) {
-        val currentState = _state.value
-        val categories = if (currentState.selectedType == com.example.myapplication.data.local.entity.TransactionType.EXPENSE) {
-            currentState.expenseCategories
-        } else {
-            currentState.incomeCategories
-        }
-
+    private fun deleteCategory(categoryId: Long) {
         viewModelScope.launch {
-            _state.value = currentState.copy(isLoading = true)
-
-            when (val result = reorderCategories(categories, fromIndex, toIndex)) {
-                is Result.Success -> {
-                    _state.value = currentState.copy(
-                        isLoading = false,
-                        isDragging = false
-                    )
-                }
-                is Result.Error -> {
-                    _state.value = currentState.copy(
-                        isLoading = false,
-                        error = result.exception.message
-                    )
-                }
-                Result.Loading -> Unit
+            try {
+                deleteCategoryUseCase(categoryId)
+                _effect.emit(CategoryEffect.ShowMessage("分类删除成功"))
+                loadCategories()
+                loadStats()
+            } catch (e: Exception) {
+                _effect.emit(CategoryEffect.ShowError(e.message ?: "删除分类失败"))
             }
         }
-    }
-
-    private fun validateInput(): Boolean {
-        val currentState = _state.value
-        val editingCategory = currentState.editingCategory
-        var isValid = true
-
-        // 验证名称
-        if (editingCategory.name.isBlank()) {
-            _state.value = currentState.copy(
-                editingCategory = editingCategory.copy(
-                    nameError = "请输入分类名称"
-                )
-            )
-            isValid = false
-        }
-
-        // 验证图标
-        if (editingCategory.icon.isBlank()) {
-            _state.value = currentState.copy(
-                editingCategory = editingCategory.copy(
-                    iconError = "请选择分类图标"
-                )
-            )
-            isValid = false
-        }
-
-        return isValid
     }
 }
 
-private fun Category.toEditingCategory(): EditingCategory {
-    return EditingCategory(
-        id = id,
-        name = name,
-        icon = icon,
-        color = color,
-        type = type,
-        orderIndex = orderIndex,
-        isDefault = isDefault,
-        parentCategoryId = parentCategoryId
-    )
-} 
+data class CategoryState(
+    val categories: List<Category> = emptyList(),
+    val stats: CategoryStats? = null,
+    val isLoading: Boolean = false
+)
+
+sealed class CategoryEffect {
+    data class ShowMessage(val message: String) : CategoryEffect()
+    data class ShowError(val message: String) : CategoryEffect()
+}
+
+sealed class CategoryEvent {
+    data class LoadCategories(val type: CategoryType? = null) : CategoryEvent()
+    data class DeleteCategory(val categoryId: Long) : CategoryEvent()
+    object RefreshStats : CategoryEvent()
+}
+
+data class CategoryStats(
+    val totalCount: Int,
+    val countByType: Map<CategoryType, Int>
+) 

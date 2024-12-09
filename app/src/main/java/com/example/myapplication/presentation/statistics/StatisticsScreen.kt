@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.myapplication.presentation.main.components.MonthPicker
+import com.example.myapplication.presentation.statistics.components.MonthlyComparisonChart
 import com.example.myapplication.presentation.statistics.components.PieChart
 import com.example.myapplication.presentation.statistics.components.TrendChart
 
@@ -99,6 +100,16 @@ fun StatisticsScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            // 月度对比图表
+            MonthlyComparisonChart(
+                data = state.monthlyComparisonData,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             // 图表区域
             if (state.showPieChart) {

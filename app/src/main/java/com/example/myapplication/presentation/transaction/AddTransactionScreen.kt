@@ -1,58 +1,54 @@
 package com.example.myapplication.presentation.transaction
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.myapplication.presentation.transaction.components.CategoryGrid
-import com.example.myapplication.presentation.transaction.components.NumberKeyboard
-import com.example.myapplication.presentation.transaction.components.TransactionTypeSelector
-import java.text.NumberFormat
-import java.util.Locale
+import com.example.myapplication.data.local.entity.TransactionType
+import com.example.myapplication.domain.model.Transaction
+import java.time.LocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionScreen(
     onNavigateBack: () -> Unit,
-    viewModel: AddTransactionViewModel = hiltViewModel()
+    viewModel: TransactionViewModel = hiltViewModel()
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    val numberFormat = NumberFormat.getCurrencyInstance(Locale.CHINA)
+    var amount by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf("") }
+    var selectedType by remember { mutableStateOf(TransactionType.EXPENSE) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var selectedDate by remember { mutableStateOf(LocalDateTime.now()) }
+    
+    LaunchedEffect(true) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is TransactionEffect.ShowMessage -> {
+                    // TODO: Show snackbar
+                    if (effect.message == "添加成功") {
+                        onNavigateBack()
+                    }
+                }
+                is TransactionEffect.ShowError -> {
+                    // TODO: Show error dialog
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("记一笔") },
+                title = { Text("添加交易") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "返回"
-                        )
-                    }
-                },
-                actions = {
-                    // 保存按钮
-                    IconButton(
-                        onClick = { viewModel.onEvent(AddTransactionEvent.SaveTransaction) },
-                        enabled = state.selectedCategory != null && 
-                                 state.selectedAccount != null &&
-                                 state.amount.toDoubleOrNull() != null &&
-                                 state.amount.toDoubleOrNull() != 0.0
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Done,
-                            contentDescription = "保存"
-                        )
+                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
                     }
                 }
             )
@@ -62,92 +58,98 @@ fun AddTransactionScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 金��输入区域
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            // 交易类型选择
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // 交易类型选择器
-                TransactionTypeSelector(
-                    selectedType = state.type,
-                    onTypeSelected = { type ->
-                        viewModel.onEvent(AddTransactionEvent.TypeChanged(type))
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 金额显示
-                Text(
-                    text = if (state.amount == "0") "0.00" else state.amount,
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = when (state.type) {
-                        com.example.myapplication.data.local.entity.TransactionType.EXPENSE -> 
-                            MaterialTheme.colorScheme.error
-                        com.example.myapplication.data.local.entity.TransactionType.INCOME -> 
-                            MaterialTheme.colorScheme.primary
-                        else -> MaterialTheme.colorScheme.onSurface
-                    },
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // 错误提示
-                state.amountError?.let { error ->
-                    Text(
-                        text = error,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
+                TransactionType.values().forEach { type ->
+                    FilterChip(
+                        selected = selectedType == type,
+                        onClick = { selectedType = type },
+                        label = {
+                            Text(
+                                when (type) {
+                                    TransactionType.EXPENSE -> "支出"
+                                    TransactionType.INCOME -> "收入"
+                                    TransactionType.TRANSFER -> "转账"
+                                }
+                            )
+                        }
                     )
                 }
             }
 
-            // 分类选择网格
-            AnimatedVisibility(
-                visible = state.categories.isNotEmpty(),
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                CategoryGrid(
-                    categories = state.categories,
-                    selectedCategory = state.selectedCategory,
-                    onCategorySelected = { category ->
-                        viewModel.onEvent(AddTransactionEvent.CategorySelected(category))
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            // 数字键盘
-            NumberKeyboard(
-                onNumberClick = { number ->
-                    viewModel.onEvent(AddTransactionEvent.NumberPressed(number))
-                },
-                onDecimalClick = {
-                    viewModel.onEvent(AddTransactionEvent.DecimalPressed)
-                },
-                onDeleteClick = {
-                    viewModel.onEvent(AddTransactionEvent.BackspacePressed)
-                },
-                onClearClick = {
-                    viewModel.onEvent(AddTransactionEvent.ClearPressed)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(240.dp)
+            // 金额输入
+            OutlinedTextField(
+                value = amount,
+                onValueChange = { if (it.isEmpty() || it.toDoubleOrNull() != null) amount = it },
+                label = { Text("金额") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth(),
+                prefix = { Text("¥") }
             )
-        }
 
-        // 错误提示
-        state.error?.let { error ->
-            Snackbar(
-                modifier = Modifier.padding(16.dp)
+            // 备注输入
+            OutlinedTextField(
+                value = note,
+                onValueChange = { note = it },
+                label = { Text("备注") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // 日期选择
+            OutlinedTextField(
+                value = selectedDate.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")),
+                onValueChange = {},
+                label = { Text("日期") },
+                modifier = Modifier.fillMaxWidth(),
+                readOnly = true,
+                trailingIcon = {
+                    IconButton(onClick = { showDatePicker = true }) {
+                        Icon(Icons.Default.DateRange, contentDescription = "选择日期")
+                    }
+                }
+            )
+
+            // TODO: 添加账户选择
+            // TODO: 添加分类选择
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // 保存按钮
+            Button(
+                onClick = {
+                    val amountValue = amount.toDoubleOrNull()
+                    if (amountValue != null && note.isNotBlank()) {
+                        viewModel.onEvent(
+                            TransactionEvent.AddTransaction(
+                                Transaction(
+                                    amount = amountValue,
+                                    type = selectedType,
+                                    note = note,
+                                    date = selectedDate,
+                                    // TODO: 替换为实际选择的账户和分类ID
+                                    accountId = 1,
+                                    categoryId = 1
+                                )
+                            )
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = amount.isNotBlank() && note.isNotBlank()
             ) {
-                Text(error)
+                Text("保存")
             }
         }
+    }
+
+    if (showDatePicker) {
+        // TODO: 实现日期选择器
+        showDatePicker = false
     }
 } 
