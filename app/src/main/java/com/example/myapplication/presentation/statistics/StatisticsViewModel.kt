@@ -20,6 +20,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.concurrent.TimeUnit
+import java.time.format.DateTimeFormatter
 
 @HiltViewModel
 class StatisticsViewModel @Inject constructor(
@@ -255,7 +256,7 @@ class StatisticsViewModel @Inject constructor(
             val startDate = currentMonth.minusMonths(5).atDay(1)
             val endDate = currentMonth.atEndOfMonth()
             
-            // 加载分页数据
+            // 加载��页数据
             val offset = currentPage * config.pageSize
             val pagedData = repository.getTransactionsByDateRangePaged(
                 startDate = startDate,
@@ -544,7 +545,7 @@ private data class CachedTransaction(
             type = type,
             categoryId = categoryId,
             accountId = accountId,
-            date = LocalDateTime.parse(date),
+            date = LocalDateTime.parse(date, DateTimeFormatter.ISO_LOCAL_DATE_TIME),
             note = note
         )
     }
@@ -557,7 +558,7 @@ private data class CachedTransaction(
                 type = transaction.type,
                 categoryId = transaction.categoryId,
                 accountId = transaction.accountId,
-                date = transaction.date.toString(),
+                date = transaction.date.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                 note = transaction.note
             )
         }
