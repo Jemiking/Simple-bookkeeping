@@ -9,36 +9,12 @@ plugins {
 }
 
 buildscript {
-    repositories {
-        maven { url = uri("https://maven.aliyun.com/repository/google") }
-        maven { url = uri("https://maven.aliyun.com/repository/public") }
-        maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
-        maven { url = uri("https://maven.aliyun.com/repository/jcenter") }
-        maven { url = uri("https://maven.aliyun.com/repository/central") }
-        maven { url = uri("https://jitpack.io") }
-        maven { url = uri("https://plugins.gradle.org/m2/") }
-        google()
-        mavenCentral()
-    }
     dependencies {
         classpath(libs.kotlin.gradle.plugin)
         classpath(libs.android.gradle.plugin)
     }
 }
 
-allprojects {
-    repositories {
-        maven { url = uri("https://maven.aliyun.com/repository/google") }
-        maven { url = uri("https://maven.aliyun.com/repository/public") }
-        maven { url = uri("https://maven.aliyun.com/repository/jcenter") }
-        maven { url = uri("https://maven.aliyun.com/repository/central") }
-        maven { url = uri("https://jitpack.io") }
-        maven { url = uri("https://plugins.gradle.org/m2/") }
-        google()
-        mavenCentral()
-    }
-}
-
 tasks.register("clean", Delete::class) {
-    delete(rootProject.buildDir)
+    delete(layout.buildDirectory)
 }

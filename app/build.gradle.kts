@@ -5,7 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     kotlin("kapt")
     alias(libs.plugins.hilt)
-    id("org.jetbrains.kotlin.plugin.serialization") version "1.8.22"
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -50,9 +50,7 @@ android {
         freeCompilerArgs = listOf(
             "-opt-in=kotlin.RequiresOptIn",
             "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
-            "-opt-in=kotlinx.serialization.ExperimentalSerializationApi",
-            "-Xskip-prerelease-check",
-            "-Xjvm-default=all"
+            "-opt-in=kotlinx.serialization.ExperimentalSerializationApi"
         )
     }
 
@@ -64,12 +62,13 @@ android {
             arg("room.incremental", "true")
             arg("room.expandProjection", "true")
             arg("dagger.hilt.android.internal.disableAndroidSuperclassValidation", "true")
+            arg("kapt.verbose", "true")
         }
     }
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     
     implementation(libs.kotlin.stdlib)
     implementation(libs.androidx.annotation)
@@ -109,6 +108,6 @@ dependencies {
     androidTestImplementation(libs.androidx.test.espresso.core)
 
     // Serialization
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.4.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
+    implementation(libs.kotlinx.serialization.core)
+    implementation(libs.kotlinx.serialization.json)
 }

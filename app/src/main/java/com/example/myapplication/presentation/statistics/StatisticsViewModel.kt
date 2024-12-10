@@ -1,40 +1,23 @@
 package com.example.myapplication.presentation.statistics
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.myapplication.data.local.entity.TransactionType
 import com.example.myapplication.domain.model.Transaction
-import com.example.myapplication.domain.repository.TransactionRepository
-import com.example.myapplication.presentation.statistics.components.ChartError
-import com.example.myapplication.presentation.statistics.components.MonthlyComparison
+import com.example.myapplication.domain.usecase.statistics.GetStatisticsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import timber.log.Timber
-import java.time.LocalDateTime
-import java.time.YearMonth
-import javax.inject.Inject
-import androidx.collection.LruCache
 import java.io.File
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.util.concurrent.TimeUnit
-import java.time.format.DateTimeFormatter
+import javax.inject.Inject
 
 @HiltViewModel
 class StatisticsViewModel @Inject constructor(
-    private val repository: TransactionRepository,
-    private val context: android.content.Context
+    @ApplicationContext private val context: Context,
+    private val getStatisticsUseCase: GetStatisticsUseCase
 ) : ViewModel() {
-
-    companion object {
-        private const val BASE_PAGE_SIZE = 50
-        private const val MIN_PREFETCH_DISTANCE = 20
-        private const val MAX_PREFETCH_DISTANCE = 100
-        private const val SCROLL_SPEED_THRESHOLD = 1000L // 毫秒
-        private const val NETWORK_SPEED_THRESHOLD = 1000L // 毫秒
-    }
 
     private val _state = MutableStateFlow(StatisticsState())
     val state: StateFlow<StatisticsState> = _state.asStateFlow()
@@ -45,544 +28,204 @@ class StatisticsViewModel @Inject constructor(
     private var isLoading = false
     private val loadedTransactions = mutableListOf<Transaction>()
 
-    private val loadDataJob: Job? = null
-    private var retryCount = 0
-    private val maxRetryCount = 3
-    private val retryDelayMs = 1000L
-
-    // 内存缓存
-    private val memoryCache = LruCache<String, List<Transaction>>(20)
-    
-    // 磁盘缓存
-    private val cacheDir = File(context.cacheDir, "statistics")
-    private val maxCacheAge = TimeUnit.HOURS.toMillis(24) // 缓存24小时
-
-    // 预加载配置
-    private data class PreloadConfig(
-        val pageSize: Int = BASE_PAGE_SIZE,
-        val prefetchDistance: Int = MIN_PREFETCH_DISTANCE,
-        val enabled: Boolean = true
+    // 缓存配置
+    private val cacheConfig = CacheConfig(
+        maxMemCacheSize = 50,
+        maxDiskCacheSize = 100 * 1024 * 1024, // 100MB
+        maxCacheAge = TimeUnit.HOURS.toMillis(24)
     )
 
-    private val preloadConfig = MutableStateFlow(PreloadConfig())
-    
-    // 用户行为跟踪
-    private var lastLoadTime = 0L
-    private var lastScrollTime = 0L
-    private var scrollSpeed = 0f
-    private val scrollSpeedHistory = mutableListOf<Float>()
-    private var networkSpeed = 0L
-    private val networkSpeedHistory = mutableListOf<Long>()
+    // 内存缓存
+    private val memoryCache = object : LinkedHashMap<String, List<Transaction>>(
+        cacheConfig.maxMemCacheSize,
+        0.75f,
+        true
+    ) {
+        override fun removeEldestEntry(eldest: Map.Entry<String, List<Transaction>>): Boolean {
+            return size > cacheConfig.maxMemCacheSize
+        }
+    }
+
+    // 磁盘缓存目录
+    private val cacheDir by lazy {
+        File(context.cacheDir, "statistics").apply {
+            if (!exists()) {
+                mkdirs()
+            }
+        }
+    }
 
     init {
-        // 监听网络状态
-        context.registerReceiver(
-            object : android.content.BroadcastReceiver() {
-                override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
-                    updatePreloadConfigBasedOnNetwork()
-                }
-            },
-            android.content.IntentFilter(android.net.ConnectivityManager.CONNECTIVITY_ACTION)
-        )
-        
+        // 清理过期缓存
+        cleanExpiredCache()
+        // 加载初始数据
+        loadInitialData()
+    }
+
+    fun loadMoreData() {
+        if (isLoading || isLastPage) return
         loadData()
     }
 
-    private fun updatePreloadConfigBasedOnNetwork() {
-        val connectivityManager = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-        val networkInfo = connectivityManager.activeNetworkInfo
-        
-        preloadConfig.update { config ->
-            when {
-                networkInfo == null -> {
-                    config.copy(enabled = false)
-                }
-                networkInfo.type == android.net.ConnectivityManager.TYPE_WIFI -> {
-                    config.copy(
-                        enabled = true,
-                        prefetchDistance = MAX_PREFETCH_DISTANCE,
-                        pageSize = BASE_PAGE_SIZE * 2
-                    )
-                }
-                else -> {
-                    config.copy(
-                        enabled = true,
-                        prefetchDistance = MIN_PREFETCH_DISTANCE,
-                        pageSize = BASE_PAGE_SIZE
-                    )
-                }
-            }
+    fun refresh() {
+        viewModelScope.launch {
+            _state.update { it.copy(isRefreshing = true) }
+            currentPage = 0
+            isLastPage = false
+            loadedTransactions.clear()
+            memoryCache.clear()
+            loadData()
+            _state.update { it.copy(isRefreshing = false) }
         }
     }
 
-    fun onScroll(scrollDelta: Float) {
-        val currentTime = System.currentTimeMillis()
-        val timeDelta = currentTime - lastScrollTime
-        
-        if (timeDelta > 0) {
-            scrollSpeed = scrollDelta / timeDelta
-            scrollSpeedHistory.add(scrollSpeed)
-            if (scrollSpeedHistory.size > 10) {
-                scrollSpeedHistory.removeAt(0)
-            }
-            
-            updatePreloadConfigBasedOnScroll()
-        }
-        
-        lastScrollTime = currentTime
-    }
-
-    private fun updatePreloadConfigBasedOnScroll() {
-        val averageSpeed = scrollSpeedHistory.average()
-        
-        preloadConfig.update { config ->
-            when {
-                averageSpeed > SCROLL_SPEED_THRESHOLD -> {
-                    // 快速滚动时增加预加载
-                    config.copy(
-                        prefetchDistance = MAX_PREFETCH_DISTANCE,
-                        pageSize = BASE_PAGE_SIZE * 2
-                    )
-                }
-                averageSpeed > SCROLL_SPEED_THRESHOLD / 2 -> {
-                    // 中等速度滚动时适度预加载
-                    config.copy(
-                        prefetchDistance = (MIN_PREFETCH_DISTANCE + MAX_PREFETCH_DISTANCE) / 2,
-                        pageSize = BASE_PAGE_SIZE
-                    )
-                }
-                else -> {
-                    // 慢速滚动时减少预加载
-                    config.copy(
-                        prefetchDistance = MIN_PREFETCH_DISTANCE,
-                        pageSize = BASE_PAGE_SIZE
-                    )
-                }
-            }
-        }
-    }
-
-    fun onEvent(event: StatisticsEvent) {
-        when (event) {
-            is StatisticsEvent.MonthSelected -> {
-                _state.update { it.copy(selectedMonth = event.month) }
-                loadData()
-            }
-            is StatisticsEvent.TypeChanged -> {
-                _state.update { it.copy(selectedType = event.type) }
-                loadData()
-            }
-            StatisticsEvent.Refresh -> {
-                loadData(isRefresh = true)
-            }
-            StatisticsEvent.RetryLoad -> {
-                retryLoadData()
-            }
-            StatisticsEvent.DismissError -> {
-                _state.update { it.copy(error = null) }
-            }
-        }
-    }
-
-    private fun loadData(isRefresh: Boolean = false) {
-        loadDataJob?.cancel()
-        loadDataJob = viewModelScope.launch {
+    private fun loadInitialData() {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
             try {
-                if (isRefresh) {
-                    retryCount = 0
-                    clearCache()
-                    resetPagingState()
+                val cachedData = getFromCache("initial_data")
+                if (cachedData != null) {
+                    loadedTransactions.addAll(cachedData)
+                    _state.update { it.copy(
+                        transactions = cachedData,
+                        isLoading = false
+                    ) }
+                } else {
+                    loadData()
                 }
-                
+            } catch (e: Exception) {
                 _state.update { it.copy(
-                    isLoading = true,
-                    error = null
+                    error = e.message ?: "加载失败",
+                    isLoading = false
                 ) }
-
-                val transactions = loadTransactions(isRefresh)
-                processTransactions(transactions)
-
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                handleError(e)
-            } finally {
-                _state.update { it.copy(isLoading = false) }
             }
         }
     }
 
-    private fun resetPagingState() {
-        currentPage = 0
-        isLastPage = false
-        isLoading = false
-        loadedTransactions.clear()
-    }
+    private fun loadData() {
+        if (isLoading) return
 
-    private suspend fun loadTransactions(isRefresh: Boolean = false): List<Transaction> {
-        val currentMonth = _state.value.selectedMonth
-        val cacheKey = getCacheKey(currentMonth)
-        
-        // 检查缓存
-        if (!isRefresh) {
-            memoryCache.get(cacheKey)?.let { cached ->
-                Timber.d("Using memory cache for $cacheKey")
-                return cached
-            }
-
-            loadFromDiskCache(cacheKey)?.let { cached ->
-                memoryCache.put(cacheKey, cached)
-                Timber.d("Using disk cache for $cacheKey")
-                return cached
-            }
-        }
-        
-        // 加载新数据
-        return loadPagedTransactions()
-    }
-
-    private suspend fun loadPagedTransactions(): List<Transaction> {
-        if (isLoading || isLastPage) return loadedTransactions
-        
-        isLoading = true
-        val startLoadTime = System.currentTimeMillis()
-        val currentMonth = _state.value.selectedMonth
-        
-        try {
-            val config = preloadConfig.value
-            if (!config.enabled) return loadedTransactions
-            
-            // 计算日期范围
-            val startDate = currentMonth.minusMonths(5).atDay(1)
-            val endDate = currentMonth.atEndOfMonth()
-            
-            // 加载��页数据
-            val offset = currentPage * config.pageSize
-            val pagedData = repository.getTransactionsByDateRangePaged(
-                startDate = startDate,
-                endDate = endDate,
-                offset = offset,
-                limit = config.pageSize
-            ).first()
-            
-            // 更新加载性能统计
-            val loadTime = System.currentTimeMillis() - startLoadTime
-            updateLoadingStats(loadTime, pagedData.size)
-            
-            // 更新分页状态
-            if (pagedData.isEmpty()) {
-                isLastPage = true
-            } else {
-                loadedTransactions.addAll(pagedData)
-                currentPage++
-                
-                // 智能预加载判断
-                if (shouldPreload(config)) {
-                    prefetchNextPage()
-                }
-            }
-            
-            return loadedTransactions.sortedBy { it.date }
-            
-        } finally {
-            isLoading = false
-        }
-    }
-
-    private fun shouldPreload(config: PreloadConfig): Boolean {
-        if (!config.enabled || isLastPage) return false
-        
-        // 检查是否达到预加载距离
-        val remainingItems = loadedTransactions.size - (currentPage * config.pageSize)
-        if (remainingItems > config.prefetchDistance) return false
-        
-        // 检查网络性能
-        val averageNetworkSpeed = networkSpeedHistory.average()
-        if (averageNetworkSpeed > NETWORK_SPEED_THRESHOLD) return false
-        
-        // 检查内存使用
-        val runtime = Runtime.getRuntime()
-        val usedMemory = runtime.totalMemory() - runtime.freeMemory()
-        val maxMemory = runtime.maxMemory()
-        if (usedMemory > maxMemory * 0.8) return false
-        
-        return true
-    }
-
-    private fun updateLoadingStats(loadTime: Long, itemCount: Int) {
-        networkSpeed = loadTime / itemCount
-        networkSpeedHistory.add(networkSpeed)
-        if (networkSpeedHistory.size > 5) {
-            networkSpeedHistory.removeAt(0)
-        }
-        
-        // 根据加载性能动态调整预加载配置
-        updatePreloadConfigBasedOnPerformance()
-    }
-
-    private fun updatePreloadConfigBasedOnPerformance() {
-        val averageNetworkSpeed = networkSpeedHistory.average()
-        
-        preloadConfig.update { config ->
-            when {
-                averageNetworkSpeed < NETWORK_SPEED_THRESHOLD / 2 -> {
-                    // 网络性能好时增加预加载
-                    config.copy(
-                        prefetchDistance = MAX_PREFETCH_DISTANCE,
-                        pageSize = BASE_PAGE_SIZE * 2
-                    )
-                }
-                averageNetworkSpeed > NETWORK_SPEED_THRESHOLD -> {
-                    // 网络性能差时减少预加载
-                    config.copy(
-                        prefetchDistance = MIN_PREFETCH_DISTANCE,
-                        pageSize = BASE_PAGE_SIZE
-                    )
-                }
-                else -> config
-            }
-        }
-    }
-
-    private fun prefetchNextPage() {
-        if (isLoading || isLastPage) return
-        
         viewModelScope.launch {
+            isLoading = true
             try {
-                loadPagedTransactions()
-            } catch (e: Exception) {
-                Timber.e(e, "Error prefetching data")
-            }
-        }
-    }
+                val result = getStatisticsUseCase(
+                    page = currentPage,
+                    pageSize = PAGE_SIZE
+                )
 
-    fun loadNextPage() {
-        if (isLoading || isLastPage) return
-        
-        viewModelScope.launch {
-            try {
-                _state.update { it.copy(isLoadingMore = true) }
-                val newData = loadPagedTransactions()
-                processTransactions(newData)
+                result.onSuccess { transactions ->
+                    if (transactions.isEmpty()) {
+                        isLastPage = true
+                    } else {
+                        loadedTransactions.addAll(transactions)
+                        currentPage++
+                        saveToCache("initial_data", loadedTransactions)
+                    }
+
+                    _state.update { it.copy(
+                        transactions = loadedTransactions.toList(),
+                        isLoading = false,
+                        error = null
+                    ) }
+                }.onFailure { e ->
+                    _state.update { it.copy(
+                        error = e.message ?: "加载失败",
+                        isLoading = false
+                    ) }
+                }
             } catch (e: Exception) {
-                handleError(e)
+                _state.update { it.copy(
+                    error = e.message ?: "加载失败",
+                    isLoading = false
+                ) }
             } finally {
-                _state.update { it.copy(isLoadingMore = false) }
+                isLoading = false
             }
         }
     }
 
-    private fun getCacheKey(month: YearMonth): String {
-        return "transactions_${month.year}_${month.monthValue}"
-    }
+    private fun getFromCache(key: String): List<Transaction>? {
+        // 1. 先从内存缓存获取
+        memoryCache[key]?.let { return it }
 
-    private fun loadFromDiskCache(key: String): List<Transaction>? {
-        val cacheFile = File(cacheDir, "$key.json")
-        if (!cacheFile.exists() || !isCacheValid(cacheFile)) {
-            return null
-        }
-
+        // 2. 尝试从磁盘缓存获取
         return try {
-            val json = cacheFile.readText()
-            Json.decodeFromString<List<CachedTransaction>>(json)
-                .map { it.toTransaction() }
+            val cacheFile = File(cacheDir, key)
+            if (cacheFile.exists() && isCacheValid(cacheFile)) {
+                val data = cacheFile.readText().let {
+                    // 反序列化逻辑
+                    emptyList() // TODO: 实现反序列化
+                }
+                memoryCache[key] = data
+                data
+            } else {
+                null
+            }
         } catch (e: Exception) {
-            Timber.e(e, "Error reading cache")
             null
         }
     }
 
-    private fun updateCache(key: String, transactions: List<Transaction>) {
-        // 更新内存缓存
-        memoryCache.put(key, transactions)
-        
-        // 更新磁盘缓存
+    private fun saveToCache(key: String, data: List<Transaction>) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val cacheFile = File(cacheDir, "$key.json")
-                val cachedTransactions = transactions.map { CachedTransaction.fromTransaction(it) }
-                val json = Json.encodeToString(cachedTransactions)
-                cacheFile.writeText(json)
+                // 1. 保存到内存缓存
+                memoryCache[key] = data
+
+                // 2. 保存到磁盘缓存
+                val cacheFile = File(cacheDir, key)
+                cacheFile.writeText(
+                    // 序列化逻辑
+                    "" // TODO: 实现序列化
+                )
             } catch (e: Exception) {
-                Timber.e(e, "Error writing cache")
+                // 缓存失败不影响主流程
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun cleanExpiredCache() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                cacheDir.listFiles()?.forEach { file ->
+                    if (!isCacheValid(file)) {
+                        file.delete()
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
 
     private fun isCacheValid(file: File): Boolean {
-        val age = System.currentTimeMillis() - file.lastModified()
-        return age < maxCacheAge
-    }
-
-    private fun clearCache() {
-        // 清理内存缓存
-        memoryCache.evictAll()
-        
-        // 清理磁盘缓存
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                cacheDir.listFiles()?.forEach { it.delete() }
-            } catch (e: Exception) {
-                Timber.e(e, "Error clearing cache")
-            }
-        }
-    }
-
-    private fun retryLoadData() {
-        if (retryCount < maxRetryCount) {
-            retryCount++
-            viewModelScope.launch {
-                delay(retryDelayMs * retryCount)
-                loadData()
-            }
-        } else {
-            _state.update { it.copy(
-                error = ChartError.Unknown,
-                isLoading = false
-            ) }
-        }
-    }
-
-    private fun handleError(error: Exception) {
-        val chartError = when (error) {
-            is java.net.UnknownHostException,
-            is java.net.SocketTimeoutException,
-            is java.io.IOException -> ChartError.Network
-            
-            is com.google.gson.JsonParseException,
-            is org.json.JSONException,
-            is java.text.ParseException -> ChartError.DataFormat
-            
-            else -> ChartError.Unknown
-        }
-
-        _state.update { it.copy(error = chartError) }
-        
-        // 记录错误日志
-        logError(error)
-    }
-
-    private fun logError(error: Exception) {
-        Timber.e(error, "Statistics data loading error")
-    }
-
-    private fun processTransactions(transactions: List<Transaction>) {
-        try {
-            val currentMonth = _state.value.selectedMonth
-            val monthlyData = mutableListOf<MonthlyComparison>()
-            
-            // 获取最近6个月的数据
-            for (i in 5 downTo 0) {
-                val month = currentMonth.minusMonths(i.toLong())
-                val monthTransactions = transactions.filter { transaction ->
-                    val transactionMonth = YearMonth.from(transaction.date)
-                    transactionMonth == month
-                }
-                
-                val income = monthTransactions
-                    .filter { it.type == TransactionType.INCOME }
-                    .sumOf { it.amount }
-                    
-                val expense = monthTransactions
-                    .filter { it.type == TransactionType.EXPENSE }
-                    .sumOf { it.amount }
-                    
-                monthlyData.add(MonthlyComparison(month, income, expense))
-            }
-            
-            // 计算总收支
-            val totalIncome = transactions
-                .filter { it.type == TransactionType.INCOME }
-                .sumOf { it.amount }
-                
-            val totalExpense = transactions
-                .filter { it.type == TransactionType.EXPENSE }
-                .sumOf { it.amount }
-            
-            // 更新加载状态
-            _state.update { it.copy(
-                monthlyComparisonData = monthlyData,
-                totalIncome = totalIncome,
-                totalExpense = totalExpense,
-                error = null,
-                hasMoreData = !isLastPage
-            ) }
-            
-            // 更新缓存
-            if (transactions.isNotEmpty()) {
-                updateCache(getCacheKey(_state.value.selectedMonth), transactions)
-            }
-            
-        } catch (e: Exception) {
-            Timber.e(e, "Error processing transactions")
-            handleError(e)
-        }
+        val lastModified = file.lastModified()
+        val now = System.currentTimeMillis()
+        return now - lastModified <= cacheConfig.maxCacheAge
     }
 
     override fun onCleared() {
         super.onCleared()
-        clearCache()
-        resetPagingState()
-        scrollSpeedHistory.clear()
-        networkSpeedHistory.clear()
-    }
-}
-
-@Serializable
-private data class CachedTransaction(
-    val id: Long,
-    val amount: Double,
-    val type: TransactionType,
-    val categoryId: Long,
-    val accountId: Long,
-    val date: String,
-    val note: String
-) {
-    fun toTransaction(): Transaction {
-        return Transaction(
-            id = id,
-            amount = amount,
-            type = type,
-            categoryId = categoryId,
-            accountId = accountId,
-            date = LocalDateTime.parse(date, DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-            note = note
-        )
+        // 清理资源
+        viewModelScope.cancel()
+        memoryCache.clear()
     }
 
     companion object {
-        fun fromTransaction(transaction: Transaction): CachedTransaction {
-            return CachedTransaction(
-                id = transaction.id,
-                amount = transaction.amount,
-                type = transaction.type,
-                categoryId = transaction.categoryId,
-                accountId = transaction.accountId,
-                date = transaction.date.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-                note = transaction.note
-            )
-        }
+        private const val PAGE_SIZE = 20
     }
 }
 
-data class StatisticsState(
-    val selectedMonth: YearMonth = YearMonth.now(),
-    val selectedType: TransactionType? = null,
-    val showPieChart: Boolean = true,
-    val isLoading: Boolean = false,
-    val error: ChartError? = null,
-    val totalIncome: Double = 0.0,
-    val totalExpense: Double = 0.0,
-    val categoryStatistics: Map<String, Double> = emptyMap(),
-    val dailyStatistics: Map<LocalDate, Double> = emptyMap(),
-    val chartData: List<Pair<Float, Float>> = emptyList(),
-    val hasMoreData: Boolean = true
+private data class CacheConfig(
+    val maxMemCacheSize: Int,
+    val maxDiskCacheSize: Long,
+    val maxCacheAge: Long
 )
 
-sealed class StatisticsEvent {
-    data class MonthSelected(val month: YearMonth) : StatisticsEvent()
-    data class TypeChanged(val type: TransactionType?) : StatisticsEvent()
-    data object Refresh : StatisticsEvent()
-    data object RetryLoad : StatisticsEvent()
-    data object DismissError : StatisticsEvent()
-} 
+data class StatisticsState(
+    val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
+    val transactions: List<Transaction> = emptyList(),
+    val error: String? = null
+) 
