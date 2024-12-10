@@ -3,8 +3,9 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    id("kotlin-kapt")
-    id("dagger.hilt.android")
+    kotlin("kapt")
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -35,55 +36,78 @@ android {
     }
     
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.4"
+        kotlinCompilerExtensionVersion = libs.versions.compose.compiler.get()
     }
     
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
     
     kotlinOptions {
         jvmTarget = "17"
+        freeCompilerArgs = listOf(
+            "-opt-in=kotlin.RequiresOptIn",
+            "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+            "-opt-in=kotlinx.serialization.ExperimentalSerializationApi"
+        )
     }
 
     kapt {
         correctErrorTypes = true
         useBuildCache = true
+        arguments {
+            arg("room.schemaLocation", "$projectDir/schemas")
+            arg("room.incremental", "true")
+            arg("room.expandProjection", "true")
+            arg("dagger.hilt.android.internal.disableAndroidSuperclassValidation", "true")
+            arg("kapt.verbose", "true")
+        }
     }
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
+    
+    implementation(libs.kotlin.stdlib)
+    implementation(libs.androidx.annotation)
+    
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)
-    implementation("androidx.appcompat:appcompat:1.6.1")
-    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    implementation("com.google.android.material:material:1.10.0")
+    implementation(libs.activity.compose)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.material)
 
     // Hilt
-    implementation("com.google.dagger:hilt-android:2.48")
-    kapt("com.google.dagger:hilt-android-compiler:2.48")
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.compiler)
 
     // Navigation
-    implementation("androidx.navigation:navigation-fragment-ktx:2.7.5")
-    implementation("androidx.navigation:navigation-ui-ktx:2.7.5")
+    implementation(libs.navigation.fragment)
+    implementation(libs.navigation.ui)
 
     // Room
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    kapt("androidx.room:room-compiler:2.6.1")
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    kapt(libs.room.compiler)
 
     // Compose
-    implementation(platform("androidx.compose:compose-bom:2023.10.01"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    implementation(platform(libs.compose.bom))
+    implementation(libs.compose.ui)
+    implementation(libs.compose.ui.graphics)
+    implementation(libs.compose.ui.tooling.preview)
+    implementation(libs.compose.material3)
+    debugImplementation(libs.compose.ui.tooling)
+    debugImplementation(libs.compose.ui.test.manifest)
 
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.espresso.core)
+
+    // Serialization
+    implementation(libs.kotlinx.serialization.core)
+    implementation(libs.kotlinx.serialization.json)
 }

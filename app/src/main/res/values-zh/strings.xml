@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App -->
+    <string name="app_name">简单记账</string>
+    <string name="app_description">一个简单的记账应用</string>
+
+    <!-- Common -->
+    <string name="ok">确定</string>
+    <string name="cancel">取消</string>
+    <string name="save">保存</string>
+    <string name="delete">删除</string>
+    <string name="edit">编辑</string>
+    <string name="retry">重试</string>
+    <string name="loading">加载中…</string>
+    <string name="error">错误</string>
+    <string name="success">成功</string>
+    <string name="warning">警告</string>
+    <string name="info">提示</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">首页</string>
+    <string name="nav_transaction">交易</string>
+    <string name="nav_statistics">统计</string>
+    <string name="nav_settings">设置</string>
+
+    <!-- Transaction -->
+    <string name="transaction_title">交易记录</string>
+    <string name="transaction_add">添加交易</string>
+    <string name="transaction_edit">编辑交易</string>
+    <string name="transaction_delete">删除交易</string>
+    <string name="transaction_amount">金额</string>
+    <string name="transaction_category">分类</string>
+    <string name="transaction_account">账户</string>
+    <string name="transaction_date">日期</string>
+    <string name="transaction_note">备注</string>
+    <string name="transaction_type">类型</string>
+    <string name="transaction_income">收入</string>
+    <string name="transaction_expense">支出</string>
+    <string name="transaction_transfer">转账</string>
+    <string name="transaction_empty">暂无交易记录</string>
+    <string name="transaction_loading">加载交易记录中…</string>
+    <string name="transaction_error">加载交易记录失败</string>
+
+    <!-- Account -->
+    <string name="account_title">账户</string>
+    <string name="account_add">添加账户</string>
+    <string name="account_edit">编辑账户</string>
+    <string name="account_delete">删除账户</string>
+    <string name="account_name">账户名称</string>
+    <string name="account_balance">账户余额</string>
+    <string name="account_type">账户类型</string>
+    <string name="account_empty">暂无账户</string>
+    <string name="account_loading">加载账户中…</string>
+    <string name="account_error">加载账户失败</string>
+
+    <!-- Category -->
+    <string name="category_title">分类</string>
+    <string name="category_add">添加分类</string>
+    <string name="category_edit">编辑分类</string>
+    <string name="category_delete">删除分类</string>
+    <string name="category_name">分类名称</string>
+    <string name="category_type">分类类型</string>
+    <string name="category_empty">暂无分类</string>
+    <string name="category_loading">加载分类中…</string>
+    <string name="category_error">加载分类失败</string>
+
+    <!-- Budget -->
+    <string name="budget_title">预算</string>
+    <string name="budget_add">添加预算</string>
+    <string name="budget_edit">编辑预算</string>
+    <string name="budget_delete">删除预算</string>
+    <string name="budget_name">预算名称</string>
+    <string name="budget_amount">预算金额</string>
+    <string name="budget_period">预算周期</string>
+    <string name="budget_empty">暂无预算</string>
+    <string name="budget_loading">加载预算中…</string>
+    <string name="budget_error">加载预算失败</string>
+
+    <!-- Statistics -->
+    <string name="statistics_title">统计</string>
+    <string name="statistics_income">收入统计</string>
+    <string name="statistics_expense">支出统计</string>
+    <string name="statistics_balance">收支平衡</string>
+    <string name="statistics_trend">趋势分析</string>
+    <string name="statistics_category">分类统计</string>
+    <string name="statistics_empty">暂无统计数据</string>
+    <string name="statistics_loading">加载统计数据中…</string>
+    <string name="statistics_error">加载统计数据失败</string>
+
+    <!-- Settings -->
+    <string name="settings_title">设置</string>
+    <string name="settings_theme">主题设置</string>
+    <string name="settings_language">语言设置</string>
+    <string name="settings_currency">货币设置</string>
+    <string name="settings_backup">备份设置</string>
+    <string name="settings_about">关于</string>
+
+    <!-- Error Messages -->
+    <string name="error_network">网络连接失败</string>
+    <string name="error_server">服务器错误</string>
+    <string name="error_unknown">未知错误</string>
+    <string name="error_invalid_amount">无效的金额</string>
+    <string name="error_invalid_date">无效的日期</string>
+    <string name="error_required_field">必填字段</string>
+    <string name="error_insufficient_balance">余额不足</string>
+
+    <!-- 账户相关 -->
+    <string name="add_account">添加账户</string>
+    <string name="account_type_cash">现金账户</string>
+    <string name="account_type_bank">银行账户</string>
+    <string name="account_type_credit_card">信用卡</string>
+    <string name="account_type_investment">投资账户</string>
+    <string name="account_type_other">其他账户</string>
+    <string name="initial_balance">初始余额</string>
+    <string name="currency">货币</string>
+    <string name="set_as_default_account">设为默认账户</string>
+    <string name="exclude_from_statistics">从统计中排除</string>
+    <string name="total_assets">总资产</string>
+    <string name="total_liabilities">总负债</string>
+    <string name="net_worth">净资产</string>
+    <string name="accounts">账户</string>
+    <string name="archived_accounts">已归档账户</string>
+    <string name="account_archive">账户归档</string>
+    <string name="account">账户</string>
+    <string name="active_accounts">活跃账户</string>
+    
+    <!-- 分类相关 -->
+    <string name="add_category">添加分类</string>
+    <string name="expense">支出</string>
+    <string name="income">收入</string>
+    <string name="select_icon">选择图标</string>
+    <string name="select_color">选择颜色</string>
+    <string name="parent_category">父分类</string>
+    <string name="category">分类</string>
+    <string name="category_icon">分类图标</string>
+    
+    <!-- 交易相关 -->
+    <string name="add_transaction">添加交易</string>
+    <string name="transfer">转账</string>
+    <string name="amount">金额</string>
+    <string name="transfer_to_account">转入账户</string>
+    <string name="date">日期</string>
+    <string name="description">描述</string>
+    <string name="recent_transactions">最近交易</string>
+    
+    <!-- 预算相关 -->
+    <string name="monthly_budget">月度预算</string>
+    <string name="category_budgets">分类预算</string>
+    <string name="add_budget">添加预算</string>
+    
+    <!-- 统计相关 -->
+    <string name="statistics">统计</string>
+    <string name="select_month">选择月份</string>
+    <string name="overview">概览</string>
+    <string name="statistics_chart">统计图表</string>
+    <string name="pie_chart">饼图</string>
+    <string name="line_chart">折线图</string>
+    <string name="category_statistics">分类统计</string>
+    
+    <!-- 筛选相关 -->
+    <string name="filter">筛选</string>
+    <string name="filter_type">筛选类型</string>
+    <string name="filter_amount_range">金额范围</string>
+    <string name="min_amount">最小金额</string>
+    <string name="max_amount">最大金额</string>
+    <string name="to">至</string>
+    <string name="filter_reset">重置</string>
+    <string name="filter_apply">应用</string>
+    
+    <!-- 其他 -->
+    <string name="share">分享</string>
+</resources> 
